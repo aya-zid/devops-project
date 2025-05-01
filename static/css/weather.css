@@ -1,0 +1,29 @@
+/* You can add additional styles here if needed */
+.weather-wrapper {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#map {
+    border: 2px solid #fff;
+    border-radius: 8px;
+}
+
+.weather-card {
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+#hourly-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#hourly-list::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+}
+
+#hourly-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 3px;
+}

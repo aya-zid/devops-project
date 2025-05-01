@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weather App</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e5799 0%,#207cca 51%,#2989d8 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .weather-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        #map {
+            height: 400px;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 2px solid white;
+        }
+        
+        .weather-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .current-weather {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .weather-icon {
+            width: 80px;
+            height: 80px;
+            margin-right: 20px;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        
+        .weather-details h2 {
+            margin-top: 0;
+        }
+        
+        #hourly-forecast {
+            margin-top: 20px;
+        }
+        
+        #hourly-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #hourly-list li {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        #hourly-list li .weather-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+        
+        /* Weather icon classes */
+        .sunny { background-image: url('/static/img/icons/sun.png'); }
+        .cloud-day { background-image: url('/static/img/icons/cloud_day.png'); }
+        .cloud-night { background-image: url('/static/img/icons/cloud_night.png'); }
+        .rainy { background-image: url('/static/img/icons/rain.png'); }
+        .moon { background-image: url('/static/img/icons/moon.png'); }
+        .snow { background-image: url('/static/img/icons/snow.png'); }
+        .thunder { background-image: url('/static/img/icons/thunder.png'); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Current Weather</h1>
+        <div class="weather-wrapper">
+            <div id="map"></div>
+            <div class="weather-card">
+                <div id="weather">
+                    <div class="current-weather">
+                        <div class="weather-icon sunny"></div>
+                        <div class="weather-details">
+                            <h2>Loading weather...</h2>
+                            <p>Temperature: --°C</p>
+                            <p>Condition: --</p>
+                            <p>Humidity: --%</p>
+                            <p>Wind: -- km/h</p>
+                        </div>
+                    </div>
+                    <div id="hourly-forecast">
+                        <h3>Hourly Forecast</h3>
+                        <ul id="hourly-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Initialize the map
+    const map = L.map('map').setView([33.8869, 9.5375], 6); // Default to Tunisia
+
+    // Load OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // Function to get weather icon based on condition
+    function getWeatherIcon(condition, isDay = true) {
+        condition = condition.toLowerCase();
+        if (condition.includes('thunder')) return 'thunder';
+        if (condition.includes('rain')) return 'rainy';
+        if (condition.includes('snow')) return 'snow';
+        if (condition.includes('cloud')) return isDay ? 'cloud-day' : 'cloud-night';
+        if (condition.includes('clear')) return isDay ? 'sunny' : 'moon';
+        return 'sunny'; // default fallback
+    }
+
+    function updateWeatherDisplay(data) {
+    if (data && data.current && data.hourly) {
+        const current = data.current;
+        const isDay = current.weather[0].icon.includes('d');
+        const iconClass = getWeatherIcon(current.weather[0].main, isDay);
+
+        const weatherHTML = `
+            <div class="current-weather">
+                <div class="weather-icon ${iconClass}"></div>
+                <div class="weather-details">
+                    <h2>${current.name}</h2>
+                    <p>Temperature: ${Math.round(current.main.temp)}°C</p>
+                    <p>Condition: ${current.weather[0].description}</p>
+                    <p>Humidity: ${current.main.humidity}%</p>
+                    <p>Wind: ${Math.round(current.wind.speed * 3.6)} km/h</p>
+                </div>
+            </div>
+        `;
+        document.querySelector('.current-weather').outerHTML = weatherHTML;
+
+        // Hourly forecast - make sure we have the container
+        const hourlyList = document.getElementById('hourly-list');
+        hourlyList.innerHTML = '';
+
+        // Check if hourly data exists and is an array
+        if (Array.isArray(data.hourly)) {
+            data.hourly.slice(0, 6).forEach(item => {
+                const date = new Date(item.dt * 1000);
+                const hours = date.getHours().toString().padStart(2, '0');
+                const isDayTime = hours >= 6 && hours < 18;
+                const iconClass = getWeatherIcon(item.weather[0].main, isDayTime);
+
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="weather-icon ${iconClass}"></div>
+                    <div>
+                        <strong>${hours}:00</strong> - ${Math.round(item.main.temp)}°C, ${item.weather[0].description}
+                    </div>
+                `;
+                hourlyList.appendChild(li);
+            });
+        } else {
+            console.error('Hourly forecast data is not in expected format:', data.hourly);
+        }
+    } else {
+        console.error('Invalid weather data structure:', data);
+    }
+}
+
+    // Get user's location or fallback to Tunis
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                // Update map
+                map.setView([lat, lon], 13);
+                L.marker([lat, lon]).addTo(map)
+                    .bindPopup('Your current location')
+                    .openPopup();
+
+                try {
+                    const response = await fetch(`/weather?lat=${lat}&lon=${lon}`);
+                    const data = await response.json();
+                    updateWeatherDisplay(data);
+                } catch (error) {
+                    console.error('Error fetching weather:', error);
+                    alert('Failed to load weather data');
+                }
+            },
+            async () => {
+                // Default to Tunis if geolocation fails
+                const defaultLat = 36.8;
+                const defaultLon = 10.18;
+
+                map.setView([defaultLat, defaultLon], 13);
+                L.marker([defaultLat, defaultLon]).addTo(map)
+                    .bindPopup('Tunis, Tunisia')
+                    .openPopup();
+
+                try {
+                    const response = await fetch(`/weather?lat=${defaultLat}&lon=${defaultLon}`);
+                    const data = await response.json();
+                    updateWeatherDisplay(data);
+                } catch (error) {
+                    console.error('Error fetching weather:', error);
+                    alert('Failed to load weather data');
+                }
+            }
+        );
+    } else {
+        alert('Geolocation is not supported by your browser.');
+    }
+</script>
+
+</body>
+</html>
