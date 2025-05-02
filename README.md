@@ -1,6 +1,6 @@
 #  DevOps Project: Dockerized Flask App with CI/CD & Terraform
 
-This project is a simple Flask web application deployed in a Docker container with automated CI/CD pipelines using GitHub Actions and infrastructure provisioning via Terraform.
+This project is a simple Flask weather web application deployed in a Docker container with automated CI/CD pipelines using GitHub Actions and infrastructure provisioning via Terraform.
 
 ---
 ## 🔧 Prerequisites
