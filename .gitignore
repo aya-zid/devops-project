@@ -1,1 +1,13 @@
 .env
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.backup
